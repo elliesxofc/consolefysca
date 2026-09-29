@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>FYSC Console</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0c0f">
+  <!-- iOS ignores parts of the manifest; these make "Add to Home Screen"
+       open full-screen with the right name and icon there too. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FYSC Console">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <main id="login" class="login" hidden>
+    <div class="login-card">
+      <div class="login-head">
+        <img class="login-logo" src="icons/icon-192.png" alt="">
+        <h1>FYSC Console</h1>
+        <p>Private admin for the live board.</p>
+      </div>
+      <form id="loginForm" novalidate>
+        <label class="field">
+          <span class="field-label">Server</span>
+          <input id="loginServer" type="url" inputmode="url" placeholder="https://your-fysca-host"
+                 autocomplete="url" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </label>
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input id="loginPassword" type="password" autocomplete="current-password">
+        </label>
+        <p id="loginError" class="form-error" role="alert" hidden></p>
+        <button id="loginSubmit" class="btn primary block" type="submit">Sign in</button>
+      </form>
+    </div>
+  </main>
+
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <h1 id="viewTitle">Home</h1>
+      <span id="statusPill" class="status-pill" data-state="connecting">
+        <span class="dot"></span><span id="statusText">Connecting…</span>
+      </span>
+    </header>
+
+    <!-- Home -->
+    <section id="view-home" class="view" data-title="Home">
+      <button id="homeAnnouncement" class="card ann-mini" type="button">
+        <span id="homeAnnLive" class="live-row"><span class="dot"></span><span id="homeAnnLiveText">No announcement live</span></span>
+        <span id="homeAnnMessage" class="ann-message" hidden></span>
+        <span id="homeAnnNext" class="ann-next" hidden></span>
+      </button>
+
+      <div class="tiles">
+        <div class="tile">
+          <span class="tile-label">On the board</span>
+          <span id="tileChannels" class="tile-value">–</span>
+        </div>
+        <div class="tile">
+          <span class="tile-label">Scheduled</span>
+          <span id="tileScheduled" class="tile-value">–</span>
+        </div>
+        <div class="tile wide">
+          <span class="tile-label">Fastest growing</span>
+          <span id="tileTopGainer" class="tile-value name">–</span>
+          <span id="tileTopGainerGain" class="tile-sub"></span>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2>Top 10</h2>
+        <button class="link-btn" type="button" data-goto="channels">See all</button>
+      </div>
+      <div id="homeTopList" class="list"></div>
+
+      <div class="section-head"><h2>Overlays</h2></div>
+      <button id="refreshOverlaysBtn" class="btn block" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        Refresh all overlays
+      </button>
+      <p class="hint">Every open board reloads on its next check, within a few seconds.</p>
+    </section>
+
+    <!-- Channels -->
+    <section id="view-channels" class="view" data-title="Channels" hidden>
+      <div class="toolbar">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="channelSearch" type="search" placeholder="Search name or ID" aria-label="Search channels"
+                 autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </label>
+        <button id="addChannelBtn" class="btn primary icon-btn" type="button" aria-label="Add channel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <p id="channelCount" class="hint"></p>
+      <div id="channelList" class="list"></div>
+      <p id="channelEmpty" class="empty" hidden>No channels match that search.</p>
+    </section>
+
+    <!-- Announce -->
+    <section id="view-announce" class="view" data-title="Announce" hidden>
+      <div class="card">
+        <div id="annLive" class="live-row"><span class="dot"></span><span id="annLiveText">No announcement live</span></div>
+        <button id="annTakeDown" class="btn danger small" type="button" hidden>Take it down</button>
+      </div>
+
+      <div class="card">
+        <label class="field">
+          <span class="field-label">Message</span>
+          <textarea id="annText" maxlength="500" rows="3" placeholder="e.g. Back in 5 minutes, stream restarting shortly!"></textarea>
+          <span id="annCounter" class="counter">0 / 500</span>
+        </label>
+        <div class="segmented" role="radiogroup" aria-label="When to post">
+          <button type="button" role="radio" aria-checked="true" data-when="now">Now</button>
+          <button type="button" role="radio" aria-checked="false" data-when="later">Later</button>
+        </div>
+        <label id="annWhenField" class="field" hidden>
+          <span class="field-label">Goes live at</span>
+          <input id="annWhen" type="datetime-local">
+        </label>
+        <button id="annSubmit" class="btn primary block" type="button">Post now</button>
+      </div>
+
+      <div class="section-head"><h2>Scheduled</h2></div>
+      <div id="scheduledList" class="list"></div>
+      <p id="scheduledEmpty" class="empty">Nothing scheduled.</p>
+      <p class="hint">Announcements show on the boards for about 15 seconds, then clear themselves.</p>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="view" data-title="Settings" hidden>
+      <div class="card">
+        <div class="setting-row">
+          <span class="field-label">Server</span>
+          <span id="settingsServer" class="mono"></span>
+        </div>
+        <div class="setting-row">
+          <span class="field-label">Signed in until</span>
+          <span id="settingsExpiry"></span>
+        </div>
+      </div>
+
+      <div id="installCard" class="card" hidden>
+        <h2>Install on this phone</h2>
+        <p id="installText" class="hint"></p>
+        <button id="installBtn" class="btn primary block" type="button" hidden>Install app</button>
+      </div>
+
+      <button id="changeServerBtn" class="btn block" type="button">Switch server</button>
+      <button id="signOutBtn" class="btn danger block" type="button">Sign out</button>
+      <p class="hint center">FYSC Console <span id="appVersion"></span></p>
+    </section>
+
+    <nav class="tabbar" aria-label="Sections">
+      <button type="button" data-tab="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>
+        <span>Home</span>
+      </button>
+      <button type="button" data-tab="channels">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg>
+        <span>Channels</span>
+      </button>
+      <button type="button" data-tab="announce">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1Z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+        <span>Announce</span>
+      </button>
+      <button type="button" data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="sheetRoot"></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
