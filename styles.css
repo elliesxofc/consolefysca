@@ -477,6 +477,7 @@ textarea { resize: vertical; min-height: 92px; }
   border-radius: 999px;
 }
 .chip:active { background: var(--surface-3); }
+.chip.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
 
 /* ---------- toasts ---------- */
 

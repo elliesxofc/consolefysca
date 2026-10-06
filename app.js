@@ -905,12 +905,51 @@
       : 'In Safari, tap Share, then “Add to Home Screen”.');
   }
 
+  // ---------------------------------------------------------------- login seasons
+
+  // Quick-pick server buttons on the sign-in screen (see config.js' seasons
+  // list). Built once at boot since the list is static config, not poll data.
+  function setupLoginSeasons() {
+    const seasons = (window.FYSC_CONFIG || {}).seasons || [];
+    const container = $('loginSeasons');
+    if (!seasons.length) {
+      container.hidden = true;
+      return;
+    }
+    const chips = seasons.map((season) => {
+      const base = normalizeBase(season.apiBase);
+      const chip = h('button', {
+        class: 'chip',
+        type: 'button',
+        onclick: () => {
+          $('loginServer').value = base;
+          highlightLoginSeason();
+          $('loginPassword').focus();
+        }
+      }, season.label);
+      chip.dataset.base = base;
+      return chip;
+    });
+    container.replaceChildren(...chips);
+    container.hidden = false;
+  }
+
+  // Marks whichever season chip (if any) matches the current Server field,
+  // so it's obvious which season you're about to sign in to.
+  function highlightLoginSeason() {
+    const current = normalizeBase($('loginServer').value);
+    $('loginSeasons').querySelectorAll('.chip').forEach((chip) => {
+      chip.classList.toggle('selected', !!current && chip.dataset.base === current);
+    });
+  }
+
   // ---------------------------------------------------------------- auth
 
   function showLogin(message) {
     $('app').hidden = true;
     $('login').hidden = false;
     $('loginServer').value = state.base;
+    highlightLoginSeason();
     const error = $('loginError');
     error.hidden = !message;
     setText(error, message || '');
@@ -985,6 +1024,8 @@
     setText($('appVersion'), 'v' + APP_VERSION);
 
     $('loginForm').addEventListener('submit', handleLogin);
+    setupLoginSeasons();
+    $('loginServer').addEventListener('input', highlightLoginSeason);
 
     document.querySelectorAll('.tabbar button').forEach((btn) => {
       btn.addEventListener('click', () => showTab(btn.dataset.tab));
