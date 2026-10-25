@@ -84,6 +84,20 @@
       </div>
       <div id="homeTopList" class="list"></div>
 
+      <div id="effectsSection" hidden>
+        <div class="section-head"><h2>Random Effects</h2></div>
+        <div class="card effects-card">
+          <div id="effectsLive" class="live-row"><span class="dot"></span><span id="effectsLiveText">Loading…</span></div>
+          <p id="effectsLast" class="effects-lines" hidden></p>
+          <p id="effectsBoosts" class="effects-lines dim" hidden></p>
+          <div class="effects-actions">
+            <button id="effectsToggleBtn" class="btn primary" type="button" disabled>Turn on</button>
+            <button id="effectsRollBtn" class="btn" type="button" disabled>Roll now</button>
+          </div>
+          <p class="hint">For events. While on, a random effect is rolled every 30 minutes: boosts for every channel or one random channel, an audit gain or loss, or nothing. Turning it off also ends any running boosts.</p>
+        </div>
+      </div>
+
       <div class="section-head"><h2>Overlays</h2></div>
       <button id="refreshOverlaysBtn" class="btn block" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
