@@ -1,9 +1,11 @@
 // FYSC Console — private mobile admin for the fysca board.
-// Talks only to the token-gated /admin/api routes in fysca/adminApi.js.
+// Talks to the token-gated /admin/api routes in fysca/adminApi.js, plus
+// the server's /effectEvent route for Random Effects (see effects below),
+// which has no /admin/api counterpart yet.
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.1.0';
   const POLL_MS = 5000;
   const CID_PATTERN = /UC[\w-]{22}/;
   const KEYS = {
@@ -117,7 +119,11 @@
     pollTimer: null,
     polling: false,
     pollAgain: false,
-    announceWhen: 'now'
+    announceWhen: 'now',
+    effects: null,          // last GET /effectEvent response, or null
+    effectsSupported: null, // false once the server 404s /effectEvent
+    effectsClockOffset: 0,  // server clock minus ours, for the countdowns
+    adminPassword: null     // asked for on first effects action, memory only
   };
 
   // ---------------------------------------------------------------- api
@@ -286,6 +292,7 @@
       state.overview = await api('/overview');
       state.lastSync = Date.now();
       setOnline(true);
+      await pollEffects();
       renderAll();
     } catch (e) {
       if (e.status !== 401) setOnline(false);
@@ -421,6 +428,7 @@
     renderHome();
     renderChannels();
     renderAnnounce();
+    renderEffects();
     updateChannelSheet();
     renderStatus();
   }
@@ -867,6 +875,172 @@
     setText($('annCounter'), `${$('annText').value.length} / 500`);
   }
 
+  // ---------------------------------------------------------------- random effects
+  // Same feature as the Random Effects card in the server's admin.html.
+  // GET /effectEvent is public; POST /effectEvent takes the admin password
+  // as secretCode (the same password as console sign-in), because there's
+  // no token-gated /admin/api route for it yet. The password is asked for
+  // on the first action and kept in memory only, never in storage, so it's
+  // gone when the app closes or you sign out.
+
+  const EFFECT_LABELS = {
+    boost5x: '5X Boost', boost3x: '3X Boost', boost3xAll: '3X Boost (all)', boost2x: '2X Boost',
+    boost2xAll: '2X Boost (all)', boost05x: '0.5X Boost',
+    auditGain: 'Audit Gain', auditLoss: 'Audit Loss', nothing: 'Nothing'
+  };
+
+  function effectLabel(type) {
+    return EFFECT_LABELS[type] || type;
+  }
+
+  function formatClock(ms) {
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
+  }
+
+  function effectsNow() {
+    return Date.now() + state.effectsClockOffset;
+  }
+
+  async function pollEffects() {
+    if (state.effectsSupported === false) return;
+    try {
+      const response = await fetch(state.base + '/effectEvent', { cache: 'no-store' });
+      if (response.status === 404) {
+        state.effectsSupported = false;
+        state.effects = null;
+        return;
+      }
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      state.effectsSupported = true;
+      state.effects = data;
+      if (typeof data.serverNow === 'number') state.effectsClockOffset = data.serverNow - Date.now();
+    } catch (e) {
+      // Keep showing the last known state; the overview poll already
+      // reports when the server itself is unreachable.
+    }
+  }
+
+  function renderEffects() {
+    const section = $('effectsSection');
+    section.hidden = !state.effectsSupported;
+    if (!state.effectsSupported || !state.effects) return;
+
+    const fx = state.effects;
+    const on = !!fx.enabled;
+    $('effectsLive').classList.toggle('active', on);
+    setText($('effectsLiveText'), on
+      ? 'On · next roll in ' + formatClock(fx.nextRollAt - effectsNow())
+      : 'Off');
+
+    const toggle = $('effectsToggleBtn');
+    if (!toggle.querySelector('.spinner')) {
+      toggle.disabled = false;
+      setText(toggle, on ? 'Turn off' : 'Turn on');
+      toggle.className = on ? 'btn danger' : 'btn primary';
+    }
+    const roll = $('effectsRollBtn');
+    if (!roll.querySelector('.spinner')) roll.disabled = !on;
+
+    const last = fx.lastRoll;
+    let lastText = '';
+    if (last) {
+      lastText = 'Last roll: ' + effectLabel(last.type) + (last.cname ? ' → ' + last.cname : '');
+      if (last.amount) lastText += ' (' + (last.amount > 0 ? '+' : '−') + fullNumber.format(Math.abs(last.amount)) + ' subs)';
+      if (last.at) lastText += ' at ' + new Date(last.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    }
+    $('effectsLast').hidden = !lastText;
+    setText($('effectsLast'), lastText);
+
+    const boosts = (fx.boosts || []).map((b) =>
+      'Running: ' + effectLabel(b.type) + (b.cname ? ' on ' + b.cname : '') + ' · ' + formatClock(b.until - effectsNow()) + ' left');
+    $('effectsBoosts').hidden = !boosts.length;
+    setText($('effectsBoosts'), boosts.join('\n'));
+  }
+
+  function askAdminPassword() {
+    if (state.adminPassword) return Promise.resolve(state.adminPassword);
+    return new Promise((resolve) => {
+      let result = null;
+      const input = h('input', { type: 'password', autocomplete: 'current-password' });
+      const form = h('form', { class: 'sheet-body' },
+        h('h2', { class: 'sheet-title' }, 'Admin password'),
+        h('p', { class: 'sheet-text' }, 'Random Effects checks the admin password on the server. It’s kept until you close the app or sign out.'),
+        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Password'), input),
+        h('button', { class: 'btn primary block', type: 'submit' }, 'Continue'));
+      const entry = openSheet(form, { onClose: () => resolve(result) });
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!input.value) { input.focus(); return; }
+        result = input.value;
+        closeSheet(entry);
+      });
+      setTimeout(() => input.focus(), 250);
+    });
+  }
+
+  async function postEffect(action) {
+    const password = await askAdminPassword();
+    if (!password) throw new ApiError('Cancelled.', -1);
+    let response;
+    try {
+      response = await fetch(state.base + '/effectEvent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action, secretCode: password }),
+        cache: 'no-store'
+      });
+    } catch (e) {
+      throw new ApiError('Can’t reach the server.', 0);
+    }
+    let data = null;
+    try { data = await response.json(); } catch (e) { /* non-JSON body */ }
+    if (response.status === 403) {
+      state.adminPassword = null;
+      throw new ApiError('Wrong admin password. Try again to re-enter it.', 403);
+    }
+    if (!response.ok) throw new ApiError((data && data.msg) || `Server error (${response.status}).`, response.status);
+    state.adminPassword = password;
+    return data;
+  }
+
+  async function runEffect(btn, action, { busy, success, failure }) {
+    const data = await withBusy(btn, busy, async () => {
+      try {
+        const result = await postEffect(action);
+        toast(result && typeof result.msg === 'string' && result.msg ? result.msg : success, 'success');
+        return result || {};
+      } catch (e) {
+        if (e.status !== -1) toast(`${failure}: ${e.message}`, 'error');
+        return null;
+      }
+    });
+    await pollEffects();
+    renderEffects();
+    return data;
+  }
+
+  async function toggleEffects(btn) {
+    if (!state.effects) return;
+    if (state.effects.enabled) {
+      const ok = await confirmSheet({
+        title: 'Turn off Random Effects?',
+        message: 'This also ends any boosts that are running right now.',
+        confirmLabel: 'Turn off',
+        danger: true
+      });
+      if (!ok) return;
+      await runEffect(btn, 'disable', { busy: 'Turning off', success: 'Random Effects off', failure: 'Couldn’t turn off' });
+    } else {
+      await runEffect(btn, 'enable', { busy: 'Turning on', success: 'Random Effects on', failure: 'Couldn’t turn on' });
+    }
+  }
+
+  async function rollEffectNow(btn) {
+    await runEffect(btn, 'roll', { busy: 'Rolling', success: 'Effect rolled', failure: 'Couldn’t roll' });
+  }
+
   // ---------------------------------------------------------------- install
 
   let deferredInstall = null;
@@ -970,6 +1144,9 @@
     state.token = null;
     state.expiresAt = 0;
     state.overview = null;
+    state.effects = null;
+    state.effectsSupported = null;
+    state.adminPassword = null;
     storage.remove(KEYS.token);
     storage.remove(KEYS.expiresAt);
     while (sheetStack.length) closeSheet(undefined, { fromHistory: true });
@@ -1036,6 +1213,8 @@
 
     $('homeAnnouncement').addEventListener('click', () => showTab('announce'));
     $('refreshOverlaysBtn').addEventListener('click', (e) => refreshOverlays(e.currentTarget));
+    $('effectsToggleBtn').addEventListener('click', (e) => toggleEffects(e.currentTarget));
+    $('effectsRollBtn').addEventListener('click', (e) => rollEffectNow(e.currentTarget));
 
     $('channelSearch').addEventListener('input', () => { if (state.overview) renderChannels(); });
     $('addChannelBtn').addEventListener('click', openAddChannelSheet);
@@ -1072,6 +1251,7 @@
       if (!state.token) return;
       renderStatus();
       if (state.overview && !$('view-announce').hidden) renderAnnounce();
+      if (state.effects && !$('view-home').hidden) renderEffects();
     }, 1000);
 
     if (state.token && state.expiresAt > Date.now()) enterApp();

@@ -45,7 +45,8 @@ After that it opens full-screen with its own icon.
 
 ## What it does
 
-- **Home:** the live announcement status, channel count, fastest-growing channel, the top 10, and a button to refresh every overlay.
+- **Home:** the live announcement status, channel count, fastest-growing channel, the top 10, Random Effects, and a button to refresh every overlay.
+- **Random Effects** (on Home): turn the event mode on or off, roll an effect now, and see the countdown to the next roll, the last roll and any running boosts. Same as the card in the server's `admin.html`. It only shows when the server has the `/effectEvent` route.
 - **Channels:** a searchable list of every channel. Tap one to rename it, set its sub count (with an undo), set its growth, or remove it. The **+** button adds a channel from a UC… ID or a channel link.
 - **Announce:** post now, schedule for later, take down the live one, and see or cancel what's scheduled.
 - **Settings:** the server, how long you stay signed in, install, and sign out.
@@ -55,7 +56,8 @@ Everything refreshes every 5 seconds while the app is open.
 ## Security notes
 
 - Sign-in locks out after 5 wrong passwords from one IP, or 30 across all IPs, for 15 minutes. A session lasts 30 days.
-- The password never reaches the phone. The phone only keeps the session token.
+- The password isn't stored on the phone. The phone only keeps the session token.
+- **Random Effects is the exception.** It uses the server's `/effectEvent` route, which checks the admin password itself (there's no token-gated `/admin/api` route for it yet). The app asks for the password the first time you use it and keeps it in memory only, so it's gone when you close the app or sign out. Adding an `/admin/api/effects` route to `adminApi.js` would let the app use the session token instead.
 - **The legacy routes are still open.** `/rename/:cid`, `/removeChannel/:cid`, `/refresh` and `/api/public/fakecounts/postSubGain` accept anyone, and the other admin routes only check the `secretCode` that's visible in `admin.html`'s source. This app doesn't use them, but anyone who finds them still can. Locking them down is a separate change.
 
 ## Updating

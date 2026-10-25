@@ -261,6 +261,10 @@ textarea { resize: vertical; min-height: 92px; }
 .ann-mini .ann-message { font-size: 15px; overflow-wrap: anywhere; }
 .ann-mini .ann-next { font-size: 13px; color: var(--dim); }
 
+.effects-lines { font-size: 14px; white-space: pre-line; overflow-wrap: anywhere; }
+.effects-lines.dim { color: var(--dim); font-size: 13px; }
+.effects-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
 .live-row { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; color: var(--dim); }
 .live-row.active { color: var(--text); }
 
