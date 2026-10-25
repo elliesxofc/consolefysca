@@ -133,6 +133,9 @@ textarea { resize: vertical; min-height: 92px; }
   padding: calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 24px);
 }
 .login-card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 22px; }
+.link-btn.center { align-self: center; }
+.install-text { display: flex; flex-direction: column; gap: 10px; }
+.install-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .login-head { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .login-logo { width: 72px; height: 72px; border-radius: 18px; }
 .login-head h1 { font-size: 24px; font-weight: 750; }

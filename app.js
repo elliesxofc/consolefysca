@@ -5,7 +5,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.1.1';
   const POLL_MS = 5000;
   const CID_PATTERN = /UC[\w-]{22}/;
   const KEYS = {
@@ -1043,10 +1043,14 @@
 
   // ---------------------------------------------------------------- install
 
+  // The browser's own install prompt, when it offers one. Not every browser
+  // does (Samsung Internet, Firefox, in-app browsers, or Chrome after the
+  // prompt was dismissed), so installStepsFor() always has manual steps as
+  // a fallback. The event isn't preventDefault()ed, so Chrome can still
+  // show its own install banner too.
   let deferredInstall = null;
 
   window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
     deferredInstall = e;
     renderInstall();
   });
@@ -1066,17 +1070,84 @@
       || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 
-  function renderInstall() {
-    const card = $('installCard');
-    if (isStandalone() || (!deferredInstall && !isIos())) {
-      card.hidden = true;
-      return;
+  // Manual install steps for the browser this is open in.
+  function installStepsFor() {
+    const ua = navigator.userAgent;
+    if (/FBAN|FBAV|Instagram|Discord|Line\/|Snapchat|TikTok|; wv\)/i.test(ua)) {
+      return {
+        note: 'This page is open inside another app’s built-in browser, which can’t install apps.',
+        steps: ['Open the menu (⋮ or ···) in this screen.', 'Choose “Open in browser” (Chrome or Safari).', 'Install from there.']
+      };
     }
-    card.hidden = false;
+    if (isIos()) {
+      return {
+        note: null,
+        steps: ['Tap the Share button (the square with an arrow).', 'Scroll down and tap “Add to Home Screen”.', 'Tap “Add”.']
+      };
+    }
+    if (/SamsungBrowser/i.test(ua)) {
+      return { note: null, steps: ['Tap the menu (☰) at the bottom right.', 'Tap “Add page to”, then “Home screen”.'] };
+    }
+    if (/Firefox/i.test(ua)) {
+      return { note: null, steps: ['Tap the menu (⋮).', 'Tap “Install” (or “Add to Home screen”).'] };
+    }
+    if (/Android/i.test(ua)) {
+      return {
+        note: null,
+        steps: ['Tap the menu (⋮) at the top right.', 'Tap “Install app” or “Add to Home screen”.', 'Tap “Install”.']
+      };
+    }
+    return { note: null, steps: ['Click the install icon at the right end of the address bar, or open the browser menu and choose “Install”.'] };
+  }
+
+  function installStepsList() {
+    const { note, steps } = installStepsFor();
+    return [
+      note && h('p', { class: 'hint' }, note),
+      h('ol', { class: 'install-steps' }, steps.map((step) => h('li', {}, step)))
+    ];
+  }
+
+  async function promptInstall() {
+    if (!deferredInstall) return false;
+    const prompt = deferredInstall;
+    deferredInstall = null; // each prompt event can only be used once
+    try {
+      prompt.prompt();
+      await prompt.userChoice;
+    } catch (e) {
+      // Fall back to the manual steps below.
+    }
+    renderInstall();
+    return true;
+  }
+
+  function openInstallSheet() {
+    const native = deferredInstall && h('button', {
+      class: 'btn primary block',
+      type: 'button',
+      onclick: async () => { closeSheet(entry); await promptInstall(); }
+    }, 'Install app');
+    const entry = openSheet(h('div', { class: 'sheet-body' },
+      h('h2', { class: 'sheet-title' }, 'Install FYSC Console'),
+      h('p', { class: 'sheet-text' }, 'It opens full-screen from your home screen, like an app.'),
+      native,
+      native && h('p', { class: 'hint' }, 'If that doesn’t work:'),
+      installStepsList()));
+  }
+
+  function renderInstall() {
+    const standalone = isStandalone();
+    $('loginInstallBtn').hidden = standalone;
+    const card = $('installCard');
+    card.hidden = standalone;
+    if (standalone) return;
     $('installBtn').hidden = !deferredInstall;
-    setText($('installText'), deferredInstall
-      ? 'Add FYSC Console to your home screen so it opens full-screen like an app.'
-      : 'In Safari, tap Share, then “Add to Home Screen”.');
+    $('installText').replaceChildren(
+      h('p', { class: 'hint' }, deferredInstall
+        ? 'Add FYSC Console to your home screen so it opens full-screen like an app. If the button doesn’t work:'
+        : 'Add FYSC Console to your home screen so it opens full-screen like an app:'),
+      ...installStepsList());
   }
 
   // ---------------------------------------------------------------- login seasons
@@ -1226,13 +1297,9 @@
     $('annSubmit').addEventListener('click', (e) => submitAnnouncement(e.currentTarget));
     $('annTakeDown').addEventListener('click', (e) => takeDownAnnouncement(e.currentTarget));
 
-    $('installBtn').addEventListener('click', async () => {
-      if (!deferredInstall) return;
-      deferredInstall.prompt();
-      await deferredInstall.userChoice;
-      deferredInstall = null;
-      renderInstall();
-    });
+    $('installBtn').addEventListener('click', promptInstall);
+    $('loginInstallBtn').addEventListener('click', openInstallSheet);
+    renderInstall();
     $('changeServerBtn').addEventListener('click', async () => {
       const ok = await confirmSheet({
         title: 'Switch server?',

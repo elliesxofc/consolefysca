@@ -37,8 +37,9 @@ To skip typing the server address on first sign-in, set `apiBase` in `config.js`
 
 ## 3. Install on your phone
 
-Open the app's URL, sign in, then:
-- **Android (Chrome):** Settings tab, then **Install app**, or use the browser menu's **Install app**.
+Open the app's URL in your phone's browser (not inside Discord or another app's built-in browser), then tap **Install this app on your phone** under the sign-in form, or use the **Install** card in Settings after signing in. Both show the steps for the browser you're in:
+- **Android (Chrome):** **Install app** when Chrome offers it, otherwise the menu (⋮), then **Install app** or **Add to Home screen**.
+- **Samsung Internet:** menu (☰), **Add page to**, then **Home screen**.
 - **iPhone (Safari):** Share, then **Add to Home Screen**.
 
 After that it opens full-screen with its own icon.
