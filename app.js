@@ -5,7 +5,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.1.1';
+  const APP_VERSION = '1.1.2';
   const POLL_MS = 5000;
   const CID_PATTERN = /UC[\w-]{22}/;
   const KEYS = {
@@ -1101,11 +1101,18 @@
   }
 
   function installStepsList() {
+    // Phones only install apps from a secure (https) address; on http, or
+    // with a broken certificate, the menu steps below would just fail.
+    if (!window.isSecureContext) {
+      return [h('p', { class: 'form-error' },
+        'This address isn’t secure (no working https), so phones can’t install the app from it. '
+        + 'Turn on HTTPS for this site, then try again.')];
+    }
     const { note, steps } = installStepsFor();
     return [
       note && h('p', { class: 'hint' }, note),
       h('ol', { class: 'install-steps' }, steps.map((step) => h('li', {}, step)))
-    ];
+    ].filter(Boolean);
   }
 
   async function promptInstall() {
