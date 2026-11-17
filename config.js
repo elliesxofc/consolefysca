@@ -3,12 +3,13 @@
 // way, whatever you sign in with is remembered on the phone.
 //
 // seasons lists quick-pick servers shown as buttons on the sign-in screen,
-// so switching seasons doesn't mean memorizing or retyping a domain. Add
-// more entries here as new seasons come online.
+// so switching seasons doesn't mean memorizing or retyping a domain.
+//
+// Kept EMPTY on purpose: this file is public (GitHub Pages), so any address
+// written here can be read by anyone with "inspect element" -- and these are
+// the fysca servers themselves, not the grind proxy. Type the address on the
+// sign-in screen instead; the phone remembers it after the first sign-in.
 window.FYSC_CONFIG = {
-  apiBase: 'https://datafyscs9.lilianax.lol',
-  seasons: [
-    { label: 'Season 9', apiBase: 'https://datafyscs9.lilianax.lol' },
-    { label: 'Season 1', apiBase: 'https://fyscs1-private-canada5493.tnstats.dev' }
-  ]
+  apiBase: '',
+  seasons: []
 };
